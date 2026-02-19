@@ -328,11 +328,13 @@ const teacherVal = currentTeacher[selected] || "";
 <div class="muted">Goal: 4 check-ins (5 = above & beyond)</div>
 
         <div class="controls">
-          <form id="addForm" method="POST" action="/add">
+         
+        <form id="addForm" method="POST" action="/add">
   <input type="hidden" name="student" value="${escapeHtml(selected)}" />
   <input id="teacherInput" type="hidden" name="teacher" value="" />
   <button class="primary" type="button" onclick="promptTeacherThenSubmit();">Add Check-In</button>
 </form>
+
 
 
             <input type="hidden" name="student" value="${escapeHtml(selected)}" />
