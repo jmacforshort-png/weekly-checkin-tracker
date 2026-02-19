@@ -294,9 +294,11 @@ app.get("/", async (req, res) => {
           </form>
         </div>
 
-        <div class="big">
-          This Week: <span class="badge" style="background:${colorForCount(current)}">${current}</span> / 5
-        </div>
+       <div class="big">
+  This Week: <span class="badge" style="background:${colorForCount(current)}">${current}</span> / 5
+</div>
+<div class="muted">Goal: 4 check-ins (5 = above & beyond)</div>
+
 
         <div class="controls">
           <form method="POST" action="/add">
