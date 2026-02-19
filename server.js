@@ -1,6 +1,4 @@
 require("dotenv").config();
-console.log("Render SHEET_ID =", process.env.SHEET_ID);
-console.log("Render SHEET_TAB =", process.env.SHEET_TAB);
 
 const express = require("express");
 const { google } = require("googleapis");
