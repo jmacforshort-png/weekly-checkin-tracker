@@ -168,7 +168,7 @@ app.get("/login", (req, res) => {
     <html>
     <body style="font-family:Arial; background:#f6f7fb; display:flex; align-items:center; justify-content:center; height:100vh;">
       <form method="POST" action="/login" style="background:white; padding:30px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.1);">
-        <h2>Weekly Check-in Tracker</h2>
+        <h2>Weekly Check-in Tracker V2</h2>
         <input type="password" name="password" placeholder="Enter password" required style="padding:10px; margin-top:10px; width:200px;">
         <br><br>
         <button type="submit" style="padding:10px 20px;">Login</button>
