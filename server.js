@@ -4,7 +4,7 @@ const { google } = require("googleapis");
 
 const app = express();
 const port = process.env.PORT || 3000;
-const APP_PASSWORD = process.env.APP_PASSWORD || "test";
+const APP_PASSWORD = process.env.APP_PASSWORD || "test"; 
 app.use(express.urlencoded({ extended: true }));
 app.use(require("express-session")({
   secret: "checkin-secret",
