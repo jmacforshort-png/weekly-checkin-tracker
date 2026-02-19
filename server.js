@@ -4,7 +4,6 @@ const { google } = require("googleapis");
 
 const app = express();
 const port = process.env.PORT || 3000;
-
 app.use(express.urlencoded({ extended: true }));
 
 // --- Google Sheets auth (service account) ---
@@ -20,6 +19,10 @@ const STUDENTS_TAB = process.env.STUDENTS_TAB || "Students";
 
 // In-memory current week counts (history persists in Sheets)
 const currentWeek = {};
+
+// Torrey pine photo (Wikimedia Commons)
+const TORREY_PINE_IMG =
+  "https://commons.wikimedia.org/wiki/Special:FilePath/Pinus_torreyana_at_State_Reserve.jpg?width=1200";
 
 // ---------- helpers ----------
 function escapeHtml(str) {
@@ -43,19 +46,16 @@ function getWeekEndingFridayISO() {
   const day = today.getDay(); // Sun=0 ... Fri=5, Sat=6
 
   if (day === 6) {
-    // Saturday -> yesterday
     const d = new Date(today);
     d.setDate(today.getDate() - 1);
     return d.toISOString().split("T")[0];
   }
   if (day === 0) {
-    // Sunday -> two days ago
     const d = new Date(today);
     d.setDate(today.getDate() - 2);
     return d.toISOString().split("T")[0];
   }
 
-  // Mon..Fri -> forward to Friday
   const diff = 5 - day;
   const friday = new Date(today);
   friday.setDate(today.getDate() + diff);
@@ -64,10 +64,18 @@ function getWeekEndingFridayISO() {
 
 function colorForCount(count) {
   if (count >= 4) return "green";
-  if (count === 3) return "goldenrod"; // yellow-ish
+  if (count === 3) return "goldenrod";
   if (count === 2) return "orange";
   if (count === 1) return "crimson";
   return "black";
+}
+
+function summaryForCount(count) {
+  if (count >= 4) return "Met goal";
+  if (count === 3) return "Close";
+  if (count === 2) return "In progress";
+  if (count === 1) return "Needs attention";
+  return "No check-ins";
 }
 
 async function getSheetValues(rangeA1) {
@@ -111,15 +119,14 @@ async function readHistoryRows() {
 }
 
 async function readStudentsList() {
-  // Expects header: student
   let values;
   try {
     values = await getSheetValues(`${STUDENTS_TAB}!A:A`);
   } catch {
     return [];
   }
-
   if (values.length === 0) return [];
+
   const header = ((values[0] || [])[0] || "").trim().toLowerCase();
   const startRow = header === "student" ? 1 : 0;
 
@@ -143,7 +150,6 @@ async function ensureStudentInSheet(name) {
 }
 
 async function saveWeekToHistory(student, friday, count) {
-  // Append a history row (shows on the site immediately after redirect)
   await appendRow(`${HISTORY_TAB}!A:C`, [student, friday, count]);
 }
 
@@ -152,9 +158,9 @@ app.get("/", async (req, res) => {
   const historyAll = await readHistoryRows();
   const studentsFromSheet = await readStudentsList();
 
+  // Student dropdown should come from Students tab (+ any students already in history)
   const set = new Set(studentsFromSheet);
   historyAll.forEach((r) => set.add(r.student));
-  Object.keys(currentWeek).forEach((s) => set.add(s));
   if (set.size === 0) set.add("Student 1");
 
   const students = Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
@@ -163,8 +169,17 @@ app.get("/", async (req, res) => {
   if (!(selected in currentWeek)) currentWeek[selected] = 0;
   const current = currentWeek[selected];
 
-  const history = historyAll
-    .filter((r) => r.student === selected)
+  // --- Build a one-row-per-Friday summary from what’s in the sheet ---
+  // If multiple rows exist for the same student+Friday, we summarize by taking the MAX checkins.
+  const summaryMap = new Map(); // weekEnding -> maxCheckins
+  for (const r of historyAll) {
+    if (r.student !== selected) continue;
+    const prev = summaryMap.get(r.weekEnding);
+    if (prev === undefined || r.checkins > prev) summaryMap.set(r.weekEnding, r.checkins);
+  }
+
+  const weeklySummary = Array.from(summaryMap.entries())
+    .map(([weekEnding, checkins]) => ({ weekEnding, checkins }))
     .sort((a, b) => (a.weekEnding < b.weekEnding ? 1 : a.weekEnding > b.weekEnding ? -1 : 0));
 
   const optionsHtml = students
@@ -172,17 +187,18 @@ app.get("/", async (req, res) => {
     .join("");
 
   const historyRowsHtml =
-    history.length > 0
-      ? history
+    weeklySummary.length > 0
+      ? weeklySummary
           .map(
             (r) => `
             <tr>
               <td>${escapeHtml(r.weekEnding)}</td>
               <td><span class="badge" style="background:${colorForCount(r.checkins)}">${r.checkins}</span></td>
+              <td class="muted">${escapeHtml(summaryForCount(r.checkins))}</td>
             </tr>`
           )
           .join("")
-      : `<tr><td colspan="2" class="muted">No weeks recorded yet for this student.</td></tr>`;
+      : `<tr><td colspan="3" class="muted">No weeks recorded yet for this student.</td></tr>`;
 
   res.send(`<!doctype html>
 <html>
@@ -206,9 +222,13 @@ app.get("/", async (req, res) => {
     .badge { display:inline-block; color:white; padding: 6px 10px; border-radius: 999px; font-weight: 900; min-width: 36px; text-align:center; }
     .muted { color:#666; font-size: 13px; }
     table { width:100%; border-collapse: collapse; margin-top: 12px; overflow:hidden; border-radius: 12px; }
-    th, td { padding: 12px; text-align:left; border-bottom: 1px solid #eee; }
+    th, td { padding: 12px; text-align:left; border-bottom: 1px solid #eee; vertical-align: middle; }
     th { background:#fafafa; font-size: 12px; color:#444; text-transform: uppercase; letter-spacing:.06em; }
     .hr { height:1px; background:#eee; margin: 14px 0; }
+    .grid { display:grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 860px){ .grid { grid-template-columns: 1.2fr .8fr; } }
+    .imgbox img { width:100%; border-radius: 14px; display:block; }
+    .caption { margin-top:10px; }
   </style>
 </head>
 <body>
@@ -253,15 +273,23 @@ app.get("/", async (req, res) => {
 
       <div class="hr"></div>
 
-      <div class="panel">
-        <h2 style="margin:0 0 6px;">Weekly History</h2>
-        <table>
-          <tr>
-            <th>Week Ending (Friday)</th>
-            <th>Check-ins</th>
-          </tr>
-          ${historyRowsHtml}
-        </table>
+      <div class="grid">
+        <div class="panel">
+          <h2 style="margin:0 0 6px;">Weekly History</h2>
+          <table>
+            <tr>
+              <th>Week Ending (Friday)</th>
+              <th>Check-ins</th>
+              <th>Summary</th>
+            </tr>
+            ${historyRowsHtml}
+          </table>
+        </div>
+
+        <div class="panel imgbox">
+          <img src="${TORREY_PINE_IMG}" alt="Torrey pine tree" />
+          <div class="caption muted">Torrey pine (Pinus torreyana)</div>
+        </div>
       </div>
 
     </div>
@@ -299,13 +327,13 @@ app.post("/endweek", async (req, res) => {
   await ensureStudentInSheet(student);
 
   const count = currentWeek[student] || 0;
-  const friday = getWeekEndingFridayISO(); // <-- Friday of that week
+  const friday = getWeekEndingFridayISO(); // Friday of that week
 
   await saveWeekToHistory(student, friday, count);
 
   currentWeek[student] = 0;
 
-  // Same page: redirect back to the student's page; it re-reads the sheet and shows the new row immediately
+  // Redirect back so the page re-reads the sheet and shows the new week immediately
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
