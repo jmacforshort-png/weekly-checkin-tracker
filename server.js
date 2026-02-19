@@ -329,22 +329,26 @@ const teacherVal = currentTeacher[selected] || "";
 
         <div class="controls">
          
-        <form id="addForm" method="POST" action="/add">
-  <input type="hidden" name="student" value="${escapeHtml(selected)}" />
-  <input id="teacherInput" type="hidden" name="teacher" value="" />
-  <button class="primary" type="button" onclick="promptTeacherThenSubmit();">Add Check-In</button>
-</form>
+        <div class="controls" style="margin-top:10px;">
+        
+  <form id="addForm" method="POST" action="/add">
+    <input type="hidden" name="student" value="${escapeHtml(selected)}" />
+    <input id="teacherInput" type="hidden" name="teacher" value="" />
+    <button class="primary" type="button" onclick="promptTeacherThenSubmit();">Add Check-In</button>
+  </form>
 
+  <form method="POST" action="/endweek">
+    <input type="hidden" name="student" value="${escapeHtml(selected)}" />
+    <button class="ghost" type="submit">End Week (Save)</button>
+  </form>
+</div>
 
 
             <input type="hidden" name="student" value="${escapeHtml(selected)}" />
             <button class="primary" type="submit">Add Check-In</button>
           </form>
 
-          <form method="POST" action="/endweek">
-            <input type="hidden" name="student" value="${escapeHtml(selected)}" />
-            <button class="ghost" type="submit">End Week (Save)</button>
-          </form>
+          
         </div>
       </div>
 
