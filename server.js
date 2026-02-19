@@ -69,7 +69,7 @@ function getWeekEndingFridayISO() {
 }
 
 function colorForCount(count) {
-  if (count >= 5) return "#14532d"; // above & beyond (dark green)
+  if (count >= 5) return "#14532d"; // above & beyond
   if (count === 4) return "green";  // goal met
   if (count === 3) return "goldenrod";
   if (count === 2) return "orange";
@@ -77,16 +77,9 @@ function colorForCount(count) {
   return "black";
 }
 
-colorForCount(count) {
-  if (count >= 4) return "green";
-  if (count === 3) return "goldenrod";
-  if (count === 2) return "orange";
-  if (count === 1) return "crimson";
-  return "black";
-}
-
 function summaryForCount(count) {
-  if (count >= 4) return "Met goal";
+  if (count >= 5) return "Above & beyond";
+  if (count === 4) return "Met goal";
   if (count === 3) return "Close";
   if (count === 2) return "In progress";
   if (count === 1) return "Needs attention";
