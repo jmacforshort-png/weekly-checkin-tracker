@@ -311,22 +311,12 @@ const teacherVal = currentTeacher[selected] || "";
 </div>
 <div class="muted">Goal: 4 check-ins (5 = above & beyond)</div>
 
-<form method="POST" action="/setteacher" class="controls" style="margin-top:10px;">
-  <input type="hidden" name="student" value="${escapeHtml(selected)}" />
-  <input type="text" name="teacher" placeholder="Teacher met with (optional)" value="${escapeHtml(teacherVal)}" />
-  <button class="ghost" type="submit">Save Comment</button>
-</form>
-
         <div class="controls">
           <form method="POST" action="/add">
             <input type="hidden" name="student" value="${escapeHtml(selected)}" />
             <button class="primary" type="submit">Add Check-In</button>
           </form>
-<form method="POST" action="/setteacher" class="controls" style="margin-top:10px;">
-  <input type="hidden" name="student" value="${escapeHtml(selected)}" />
-  <input type="text" name="teacher" placeholder="Teacher met with (optional)" value="${escapeHtml(teacherVal)}" />
-  <button class="ghost" type="submit">Save Comment</button>
-</form>
+
           <form method="POST" action="/endweek">
             <input type="hidden" name="student" value="${escapeHtml(selected)}" />
             <button class="ghost" type="submit">End Week (Save)</button>
@@ -365,14 +355,6 @@ app.post("/add", (req, res) => {
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
   currentWeek[student] = Math.min((currentWeek[student] || 0) + 1, 5);
-  res.redirect("/?student=" + encodeURIComponent(student));
-});
-
-app.post("/setteacher", (req, res) => {
-  const student = normalizeStudentName(req.body.student);
-  if (!student) return res.redirect("/");
-
-  currentTeacher[student] = (req.body.teacher || "").trim();
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
