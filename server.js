@@ -183,6 +183,14 @@ app.get("/login", (req, res) => {
         <br><br>
         <button type="submit" style="padding:10px 20px;">Login</button>
       </form>
+      <script>
+  function promptTeacherAndSubmit(form) {
+    const name = prompt("Teacher met with (optional):");
+    if (name === null) return false; // Cancel
+    form.teacher.value = name.trim();
+    return true;
+  }
+</script>
     </body>
     </html>
   `);
@@ -312,7 +320,12 @@ const teacherVal = currentTeacher[selected] || "";
 <div class="muted">Goal: 4 check-ins (5 = above & beyond)</div>
 
         <div class="controls">
-          <form method="POST" action="/add">
+          <form method="POST" action="/add" onsubmit="return promptTeacherAndSubmit(this);">
+  <input type="hidden" name="student" value="${escapeHtml(selected)}" />
+  <input type="hidden" name="teacher" value="" />
+  <button class="primary" type="submit">Add Check-In</button>
+</form>
+
             <input type="hidden" name="student" value="${escapeHtml(selected)}" />
             <button class="primary" type="submit">Add Check-In</button>
           </form>
