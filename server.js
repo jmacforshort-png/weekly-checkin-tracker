@@ -68,7 +68,16 @@ function getWeekEndingFridayISO() {
   return friday.toISOString().split("T")[0];
 }
 
-function colorForCount(count) {
+function function colorForCount(count) {
+  if (count >= 5) return "#14532d"; // above & beyond (dark green)
+  if (count === 4) return "green";  // goal met
+  if (count === 3) return "goldenrod";
+  if (count === 2) return "orange";
+  if (count === 1) return "crimson";
+  return "black";
+}
+
+colorForCount(count) {
   if (count >= 4) return "green";
   if (count === 3) return "goldenrod";
   if (count === 2) return "orange";
@@ -293,7 +302,7 @@ app.get("/", async (req, res) => {
         </div>
 
         <div class="big">
-          This Week: <span class="badge" style="background:${colorForCount(current)}">${current}</span> / 4
+          This Week: <span class="badge" style="background:${colorForCount(current)}">${current}</span> / 5
         </div>
 
         <div class="controls">
@@ -339,7 +348,7 @@ app.get("/", async (req, res) => {
 app.post("/add", (req, res) => {
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
-  currentWeek[student] = Math.min((currentWeek[student] || 0) + 1, 4);
+  currentWeek[student] = Math.min((currentWeek[student] || 0) + 1, 5);
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
