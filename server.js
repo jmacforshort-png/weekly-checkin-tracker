@@ -68,7 +68,7 @@ function getWeekEndingFridayISO() {
   return friday.toISOString().split("T")[0];
 }
 
-function function colorForCount(count) {
+function colorForCount(count) {
   if (count >= 5) return "#14532d"; // above & beyond (dark green)
   if (count === 4) return "green";  // goal met
   if (count === 3) return "goldenrod";
