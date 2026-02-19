@@ -350,7 +350,7 @@ app.get("/", async (req, res) => {
 </body>
 </html>`);
 });
-
+ 
 app.post("/add", (req, res) => {
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
