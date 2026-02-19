@@ -215,6 +215,7 @@ app.get("/", async (req, res) => {
 
   const students = Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   const selected = normalizeStudentName(req.query.student) || students[0];
+const teacherVal = currentTeacher[selected] || "";
 
   if (!(selected in currentWeek)) currentWeek[selected] = 0;
   const current = currentWeek[selected];
@@ -310,6 +311,11 @@ app.get("/", async (req, res) => {
 </div>
 <div class="muted">Goal: 4 check-ins (5 = above & beyond)</div>
 
+<form method="POST" action="/setteacher" class="controls" style="margin-top:10px;">
+  <input type="hidden" name="student" value="${escapeHtml(selected)}" />
+  <input type="text" name="teacher" placeholder="Teacher met with (optional)" value="${escapeHtml(teacherVal)}" />
+  <button class="ghost" type="submit">Save Comment</button>
+</form>
 
         <div class="controls">
           <form method="POST" action="/add">
