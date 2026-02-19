@@ -27,6 +27,8 @@ const STUDENTS_TAB = process.env.STUDENTS_TAB || "Students";
 
 // In-memory current week counts (history persists in Sheets)
 const currentWeek = {};
+const currentTeacher = {};
+
 
 // Torrey pine photo (Wikimedia Commons)
 const TORREY_PINE_IMG =
@@ -106,15 +108,18 @@ async function appendRow(rangeA1, row) {
 }
 
 async function readHistoryRows() {
-  // Expects header row: student | week_ending | checkins
-  const values = await getSheetValues(`${HISTORY_TAB}!A:C`);
+  // Expects header row: student | week_ending | checkins | teacher
+  const values = await getSheetValues(`${HISTORY_TAB}!A:D`);
   if (values.length === 0) return [];
 
   const header = (values[0] || []).map((h) => (h || "").trim().toLowerCase());
   const idxStudent = header.indexOf("student");
   const idxWeek = header.indexOf("week_ending");
   const idxCheckins = header.indexOf("checkins");
-  const startRow = idxStudent === -1 || idxWeek === -1 || idxCheckins === -1 ? 0 : 1;
+  const idxTeacher = header.indexOf("teacher");
+
+  const startRow =
+    idxStudent === -1 || idxWeek === -1 || idxCheckins === -1 ? 0 : 1;
 
   const rows = [];
   for (let i = startRow; i < values.length; i++) {
@@ -122,11 +127,14 @@ async function readHistoryRows() {
     const student = (r[idxStudent] ?? r[0] ?? "").toString().trim();
     const weekEnding = (r[idxWeek] ?? r[1] ?? "").toString().trim();
     const checkins = Number((r[idxCheckins] ?? r[2] ?? "").toString().trim());
+    const teacher = ((idxTeacher >= 0 ? r[idxTeacher] : r[3]) ?? "").toString().trim();
+
     if (!student || !weekEnding || Number.isNaN(checkins)) continue;
-    rows.push({ student, weekEnding, checkins });
+    rows.push({ student, weekEnding, checkins, teacher });
   }
   return rows;
 }
+
 
 async function readStudentsList() {
   let values;
@@ -159,8 +167,8 @@ async function ensureStudentInSheet(name) {
   }
 }
 
-async function saveWeekToHistory(student, friday, count) {
-  await appendRow(`${HISTORY_TAB}!A:C`, [student, friday, count]);
+async function saveWeekToHistory(student, friday, count, teacher) {
+  await appendRow(`${HISTORY_TAB}!A:D`, [student, friday, count, teacher || ""]);
 }
 
 // ---------- routes ----------
@@ -347,6 +355,14 @@ app.post("/add", (req, res) => {
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
   currentWeek[student] = Math.min((currentWeek[student] || 0) + 1, 5);
+  res.redirect("/?student=" + encodeURIComponent(student));
+});
+
+app.post("/setteacher", (req, res) => {
+  const student = normalizeStudentName(req.body.student);
+  if (!student) return res.redirect("/");
+
+  currentTeacher[student] = (req.body.teacher || "").trim();
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
