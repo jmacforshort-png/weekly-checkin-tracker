@@ -2,6 +2,8 @@ require("dotenv").config();
 const express = require("express");
 const { google } = require("googleapis"); 
 
+const BUILD_TIME = new Date().toLocaleString();
+
 const app = express();
 const port = process.env.PORT || 3000;
 const APP_PASSWORD = process.env.APP_PASSWORD || "test"; 
@@ -275,6 +277,7 @@ app.get("/", async (req, res) => {
   <div class="wrap">
     <div class="card">
       <h1>Weekly Check-in Tracker</h1>
+      <div style="font-size:12px; color:#666;">Build: ${BUILD_TIME}</div>
       <p class="sub">Select a student, track check-ins (goal: 4/week), and save weekly totals.</p>
 
       <div class="panel">
