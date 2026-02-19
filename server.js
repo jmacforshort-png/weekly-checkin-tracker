@@ -4,7 +4,13 @@ const { google } = require("googleapis");
 
 const app = express();
 const port = process.env.PORT || 3000;
+const APP_PASSWORD = process.env.APP_PASSWORD || "test";
 app.use(express.urlencoded({ extended: true }));
+app.use(require("express-session")({
+  secret: "checkin-secret",
+  resave: false,
+  saveUninitialized: false,
+}));
 
 // --- Google Sheets auth (service account) ---
 const auth = new google.auth.GoogleAuth({
@@ -154,6 +160,38 @@ async function saveWeekToHistory(student, friday, count) {
 }
 
 // ---------- routes ----------
+// --- Login page ---
+app.get("/login", (req, res) => {
+  res.send(`
+    <html>
+    <body style="font-family:Arial; background:#f6f7fb; display:flex; align-items:center; justify-content:center; height:100vh;">
+      <form method="POST" action="/login" style="background:white; padding:30px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.1);">
+        <h2>Weekly Check-in Tracker</h2>
+        <input type="password" name="password" placeholder="Enter password" required style="padding:10px; margin-top:10px; width:200px;">
+        <br><br>
+        <button type="submit" style="padding:10px 20px;">Login</button>
+      </form>
+    </body>
+    </html>
+  `);
+});
+
+app.post("/login", (req, res) => {
+  if (req.body.password === APP_PASSWORD) {
+    req.session.loggedIn = true;
+    res.redirect("/");
+  } else {
+    res.redirect("/login");
+  }
+});
+
+// Protect all routes except /login
+app.use((req, res, next) => {
+  if (req.path === "/login") return next();
+  if (!req.session.loggedIn) return res.redirect("/login");
+  next();
+});
+
 app.get("/", async (req, res) => {
   const historyAll = await readHistoryRows();
   const studentsFromSheet = await readStudentsList();
