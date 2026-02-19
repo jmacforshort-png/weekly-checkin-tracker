@@ -15,11 +15,7 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: "v4", auth });
 
 const SHEET_ID = process.env.SHEET_ID;
-
-// History tab (your existing one)
 const HISTORY_TAB = process.env.SHEET_TAB || "Sheet1";
-
-// New students tab
 const STUDENTS_TAB = process.env.STUDENTS_TAB || "Students";
 
 // In-memory current week counts (history persists in Sheets)
@@ -39,13 +35,31 @@ function normalizeStudentName(s) {
   return (s || "").trim();
 }
 
+// Friday of the *current week*
+// - Mon–Fri -> that week's Friday (today if Friday)
+// - Sat/Sun -> previous Friday
 function getWeekEndingFridayISO() {
   const today = new Date();
-  const day = today.getDay(); // Sun=0 ... Fri=5
+  const day = today.getDay(); // Sun=0 ... Fri=5, Sat=6
+
+  if (day === 6) {
+    // Saturday -> yesterday
+    const d = new Date(today);
+    d.setDate(today.getDate() - 1);
+    return d.toISOString().split("T")[0];
+  }
+  if (day === 0) {
+    // Sunday -> two days ago
+    const d = new Date(today);
+    d.setDate(today.getDate() - 2);
+    return d.toISOString().split("T")[0];
+  }
+
+  // Mon..Fri -> forward to Friday
   const diff = 5 - day;
   const friday = new Date(today);
   friday.setDate(today.getDate() + diff);
-  return friday.toISOString().split("T")[0]; // YYYY-MM-DD
+  return friday.toISOString().split("T")[0];
 }
 
 function colorForCount(count) {
@@ -74,7 +88,7 @@ async function appendRow(rangeA1, row) {
 }
 
 async function readHistoryRows() {
-  // Expects header row in HISTORY_TAB: student | week_ending | checkins
+  // Expects header row: student | week_ending | checkins
   const values = await getSheetValues(`${HISTORY_TAB}!A:C`);
   if (values.length === 0) return [];
 
@@ -97,17 +111,15 @@ async function readHistoryRows() {
 }
 
 async function readStudentsList() {
-  // Expects header in STUDENTS_TAB: student
+  // Expects header: student
   let values;
   try {
     values = await getSheetValues(`${STUDENTS_TAB}!A:A`);
   } catch {
-    // If the tab doesn't exist yet, return empty and the UI still works.
     return [];
   }
 
   if (values.length === 0) return [];
-
   const header = ((values[0] || [])[0] || "").trim().toLowerCase();
   const startRow = header === "student" ? 1 : 0;
 
@@ -131,6 +143,7 @@ async function ensureStudentInSheet(name) {
 }
 
 async function saveWeekToHistory(student, friday, count) {
+  // Append a history row (shows on the site immediately after redirect)
   await appendRow(`${HISTORY_TAB}!A:C`, [student, friday, count]);
 }
 
@@ -139,15 +152,12 @@ app.get("/", async (req, res) => {
   const historyAll = await readHistoryRows();
   const studentsFromSheet = await readStudentsList();
 
-  // Combine students from Students tab + history + currentWeek (in case)
   const set = new Set(studentsFromSheet);
   historyAll.forEach((r) => set.add(r.student));
   Object.keys(currentWeek).forEach((s) => set.add(s));
-
   if (set.size === 0) set.add("Student 1");
 
   const students = Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-
   const selected = normalizeStudentName(req.query.student) || students[0];
 
   if (!(selected in currentWeek)) currentWeek[selected] = 0;
@@ -199,15 +209,13 @@ app.get("/", async (req, res) => {
     th, td { padding: 12px; text-align:left; border-bottom: 1px solid #eee; }
     th { background:#fafafa; font-size: 12px; color:#444; text-transform: uppercase; letter-spacing:.06em; }
     .hr { height:1px; background:#eee; margin: 14px 0; }
-    .grid { display:grid; grid-template-columns: 1fr; gap: 16px; }
-    @media (min-width: 860px){ .grid { grid-template-columns: 1fr 1fr; } }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>Weekly Check-in Tracker</h1>
-      <p class="sub">Select a student, track check-ins (goal: 4/week), and save weekly totals to Google Sheets.</p>
+      <p class="sub">Select a student, track check-ins (goal: 4/week), and save weekly totals.</p>
 
       <div class="panel">
         <div class="controls">
@@ -241,29 +249,19 @@ app.get("/", async (req, res) => {
             <button class="ghost" type="submit">End Week (Save)</button>
           </form>
         </div>
-
-        <p class="muted" style="margin-top:10px;">Color key: 4=green, 3=yellow, 2=orange, 1=red, 0=black.</p>
       </div>
 
       <div class="hr"></div>
 
-      <div class="grid">
-        <div class="panel">
-          <h2 style="margin:0 0 6px;">Weekly History</h2>
-          <p class="muted" style="margin:0 0 10px;">Week ending Friday + the saved check-in total.</p>
-          <table>
-            <tr>
-              <th>Week Ending (Friday)</th>
-              <th>Check-ins</th>
-            </tr>
-            ${historyRowsHtml}
-          </table>
-        </div>
-
-        <div class="panel">
-          <h2 style="margin:0 0 6px;">Notes</h2>
-          <p class="muted" style="margin:0;">“End Week (Save)” writes a row to the Sheet and resets the counter to 0.</p>
-        </div>
+      <div class="panel">
+        <h2 style="margin:0 0 6px;">Weekly History</h2>
+        <table>
+          <tr>
+            <th>Week Ending (Friday)</th>
+            <th>Check-ins</th>
+          </tr>
+          ${historyRowsHtml}
+        </table>
       </div>
 
     </div>
@@ -289,10 +287,7 @@ app.post("/clearweek", (req, res) => {
 app.post("/addstudent", async (req, res) => {
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
-
-  // Persist student in the Students tab so it shows in dropdown permanently
   await ensureStudentInSheet(student);
-
   if (!(student in currentWeek)) currentWeek[student] = 0;
   res.redirect("/?student=" + encodeURIComponent(student));
 });
@@ -301,15 +296,16 @@ app.post("/endweek", async (req, res) => {
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
 
-  // ensure student exists in Students tab too
   await ensureStudentInSheet(student);
 
   const count = currentWeek[student] || 0;
-  const friday = getWeekEndingFridayISO();
+  const friday = getWeekEndingFridayISO(); // <-- Friday of that week
 
   await saveWeekToHistory(student, friday, count);
 
   currentWeek[student] = 0;
+
+  // Same page: redirect back to the student's page; it re-reads the sheet and shows the new row immediately
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
