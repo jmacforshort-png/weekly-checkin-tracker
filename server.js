@@ -191,6 +191,14 @@ app.get("/login", (req, res) => {
     return true;
   }
 </script>
+<script>
+  function promptTeacherThenSubmit() {
+    const name = prompt("Teacher met with (optional):");
+    if (name === null) return;
+    document.getElementById("teacherInput").value = name.trim();
+    document.getElementById("addForm").submit();
+  }
+</script>
     </body>
     </html>
   `);
@@ -320,11 +328,12 @@ const teacherVal = currentTeacher[selected] || "";
 <div class="muted">Goal: 4 check-ins (5 = above & beyond)</div>
 
         <div class="controls">
-          <form method="POST" action="/add" onsubmit="return promptTeacherAndSubmit(this);">
+          <form id="addForm" method="POST" action="/add">
   <input type="hidden" name="student" value="${escapeHtml(selected)}" />
-  <input type="hidden" name="teacher" value="" />
-  <button class="primary" type="submit">Add Check-In</button>
+  <input id="teacherInput" type="hidden" name="teacher" value="" />
+  <button class="primary" type="button" onclick="promptTeacherThenSubmit();">Add Check-In</button>
 </form>
+
 
             <input type="hidden" name="student" value="${escapeHtml(selected)}" />
             <button class="primary" type="submit">Add Check-In</button>
