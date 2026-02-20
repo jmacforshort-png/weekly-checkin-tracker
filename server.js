@@ -344,7 +344,7 @@ const teacherVal = currentTeacher[selected] || "";
 
 
             <input type="hidden" name="student" value="${escapeHtml(selected)}" />
-            <button class="primary" type="submit">Add Check-In</button>
+            <button class="primary" type="button" onclick="alert('clicked');">Add Check-In</button>
           </form>
 
           
