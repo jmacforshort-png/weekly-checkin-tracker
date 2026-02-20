@@ -187,11 +187,16 @@ app.get("/login", (req, res) => {
   res.send(`
     <html>
     <body style="font-family:Arial; background:#f6f7fb; display:flex; align-items:center; justify-content:center; height:100vh;">
-      <form method="POST" action="/login" style="background:white; padding:30px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.1);">
+      <form method="POST" action="/login" style="background:white; padding:30px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.1); min-width:320px;">
         <h2>Weekly Check-in Tracker</h2>
-        <input type="password" name="password" placeholder="Enter password" required style="padding:10px; margin-top:10px; width:240px;">
+
+        <input type="text" name="username" placeholder="Username" required
+          style="padding:10px; margin-top:10px; width:100%; box-sizing:border-box;">
+        <input type="password" name="password" placeholder="Password" required
+          style="padding:10px; margin-top:10px; width:100%; box-sizing:border-box;">
+
         <br><br>
-        <button type="submit" style="padding:10px 20px;">Login</button>
+        <button type="submit" style="padding:10px 20px; width:100%;">Login</button>
       </form>
     </body>
     </html>
@@ -199,9 +204,15 @@ app.get("/login", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  if (req.body.password === APP_PASSWORD) {
+  const username = (req.body.username || "").trim().toLowerCase();
+  const password = (req.body.password || "").trim();
+
+  if (!username) return res.redirect("/login");
+
+  if (password === APP_PASSWORD) {
     req.session.loggedIn = true;
-    res.redirect("/");
+    req.session.user = username; // ✅ store the owner
+    res.redirect("/?student=");
   } else {
     res.redirect("/login");
   }
