@@ -297,20 +297,7 @@ app.get("/", async (req, res) => {
             <select name="student" onchange="this.form.submit()">${optionsHtml}</select>
           </form>
 
-          <form method="POST" action="/add">
-  <input type="hidden" name="student" value="${escapeHtml(selected)}" />
-  <input type="hidden" name="teacher" value="" />
-  <button class="primary" type="button"
-    onclick="(function(btn){
-      const f = btn.closest('form');
-      const t = f.querySelector('input[name=teacher]');
-      const name = prompt('Teacher met with (optional):');
-      if (name === null) return;
-      t.value = name.trim();
-      f.submit();
-    })(this);">
-    Add Check-In
-  </button>
+        
 <form method="POST" action="/add">
   <input type="hidden" name="student" value="${escapeHtml(selected)}" />
   <input type="hidden" name="teacher" value="" />
