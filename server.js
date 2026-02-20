@@ -27,7 +27,7 @@ const STUDENTS_TAB = process.env.STUDENTS_TAB || "Students";
 
 // In-memory current week counts (history persists in Sheets)
 const currentWeek = {};
-const currentTeacher = {};
+const currentTeachers = {}; // student -> array of teacher names this week
 
 
 // Torrey pine photo (Wikimedia Commons)
@@ -378,6 +378,12 @@ app.post("/add", (req, res) => {
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
   currentWeek[student] = Math.min((currentWeek[student] || 0) + 1, 5);
+  const teacher = (req.body.teacher || "").trim();
+if (teacher) {
+  if (!currentTeachers[student]) currentTeachers[student] = [];
+  currentTeachers[student].push(teacher);
+}
+
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
