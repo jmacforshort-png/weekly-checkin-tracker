@@ -30,8 +30,7 @@ const HISTORY_TAB = process.env.SHEET_TAB || "Sheet1";
 const STUDENTS_TAB = process.env.STUDENTS_TAB || "Students";
 
 // In-memory current week counts (history persists in Sheets)
-// NOTE: these are per-student keys; OK for a small app, but if two owners use the same student name,
-// their "current week" would collide. We'll key by owner|student below to avoid collisions.
+// Keyed by owner||student so two users can both have "Student 1" without collisions.
 const currentWeek = {}; // key -> number
 const currentTeachers = {}; // key -> array of teacher names this week
 
@@ -58,7 +57,7 @@ function normalizeOwner(s) {
 }
 
 function ownerStudentKey(owner, student) {
-  return `${owner}||${student}`; // stable composite key
+  return `${owner}||${student}`;
 }
 
 // Friday of the *current week*
@@ -120,6 +119,8 @@ async function appendRow(rangeA1, row) {
   });
 }
 
+// ---------- sheet readers/writers ----------
+
 async function readHistoryRows() {
   // Expects header row: owner | student | week_ending | checkins | teacher
   const values = await getSheetValues(`${HISTORY_TAB}!A:E`);
@@ -156,28 +157,42 @@ async function readHistoryRows() {
 }
 
 async function readStudentsList() {
-  // Expects header row: owner | student
+  // Supports:
+  //  - New format:  owner | student   (A:B)
+  //  - Legacy:      student           (A:A)
   let values;
   try {
     values = await getSheetValues(`${STUDENTS_TAB}!A:B`);
   } catch {
-    return [];
+    try {
+      values = await getSheetValues(`${STUDENTS_TAB}!A:A`);
+    } catch {
+      return [];
+    }
   }
-  if (values.length === 0) return [];
+  if (!values || values.length === 0) return [];
 
-  const headerRow = values[0] || [];
-  const headerA = (headerRow[0] || "").toString().trim().toLowerCase();
-  const headerB = (headerRow[1] || "").toString().trim().toLowerCase();
+  const first = values[0] || [];
+  const hA = (first[0] || "").toString().trim().toLowerCase();
+  const hB = (first[1] || "").toString().trim().toLowerCase();
 
-  // If headers are present, start at 1. Otherwise, start at 0.
-  const startRow = headerA === "owner" || headerB === "student" ? 1 : 0;
+  const looksLikeNewFormat = hA === "owner" && hB === "student";
+  const looksLikeOldFormat = hA === "student" && (!hB || hB === "");
+
+  const startRow = looksLikeNewFormat || looksLikeOldFormat ? 1 : 0;
 
   const rows = [];
   for (let i = startRow; i < values.length; i++) {
     const r = values[i] || [];
-    const owner = normalizeOwner((r[0] || "").toString());
-    const student = (r[1] || "").toString().trim();
-    if (owner && student) rows.push({ owner, student });
+    if (looksLikeNewFormat) {
+      const owner = normalizeOwner((r[0] || "").toString());
+      const student = (r[1] || "").toString().trim();
+      if (owner && student) rows.push({ owner, student });
+    } else {
+      // legacy: A column contains student names
+      const student = (r[0] || "").toString().trim();
+      if (student) rows.push({ owner: "", student });
+    }
   }
   return rows;
 }
@@ -191,20 +206,20 @@ async function ensureStudentInSheet(owner, name) {
   const exists = existing.some(
     (r) => r.owner === o && r.student.toLowerCase() === student.toLowerCase()
   );
-  if (!exists) {
+  if (exists) return;
+
+  // Try new format first (A:B). If the sheet is still legacy, fall back.
+  try {
     await appendRow(`${STUDENTS_TAB}!A:B`, [o, student]);
+    return;
+  } catch {
+    await appendRow(`${STUDENTS_TAB}!A:A`, [student]);
   }
 }
 
 async function saveWeekToHistory(owner, student, friday, count, teacherSummary) {
   const o = normalizeOwner(owner);
-  await appendRow(`${HISTORY_TAB}!A:E`, [
-    o,
-    student,
-    friday,
-    count,
-    teacherSummary || "",
-  ]);
+  await appendRow(`${HISTORY_TAB}!A:E`, [o, student, friday, count, teacherSummary || ""]);
 }
 
 // ---------- routes ----------
@@ -259,12 +274,17 @@ app.get("/", async (req, res) => {
   const historyAll = await readHistoryRows();
   const studentsRows = await readStudentsList();
 
-  // Only this owner's students
-  const ownerStudents = studentsRows
+  // Only this owner's students (new format)
+  let ownerStudents = studentsRows
     .filter((r) => r.owner === owner)
     .map((r) => r.student);
 
-  // Also include any students from this owner's history (in case they existed before Students tab)
+  // If none exist yet (or Students tab still legacy), fallback to legacy rows to avoid empty dropdown
+  if (ownerStudents.length === 0) {
+    ownerStudents = studentsRows.filter((r) => !r.owner).map((r) => r.student);
+  }
+
+  // Also include any students from this owner's history
   const set = new Set(ownerStudents);
   historyAll.forEach((r) => {
     if (r.owner === owner) set.add(r.student);
@@ -285,7 +305,6 @@ app.get("/", async (req, res) => {
   const current = currentWeek[key];
 
   // Summarize history: one row per Friday for this owner+student.
-  // If duplicates exist for same Friday, keep the row with MAX checkins (and its teacher text).
   const map = new Map(); // weekEnding -> {checkins, teacher}
   for (const r of historyAll) {
     if (r.owner !== owner) continue;
