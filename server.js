@@ -183,22 +183,7 @@ app.get("/login", (req, res) => {
         <br><br>
         <button type="submit" style="padding:10px 20px;">Login</button>
       </form>
-      <script>
-  function promptTeacherAndSubmit(form) {
-    const name = prompt("Teacher met with (optional):");
-    if (name === null) return false; // Cancel
-    form.teacher.value = name.trim();
-    return true;
-  }
-</script>
-<script>
-  function promptTeacherThenSubmit() {
-    const name = prompt("Teacher met with (optional):");
-    if (name === null) return;
-    document.getElementById("teacherInput").value = name.trim();
-    document.getElementById("addForm").submit();
-  }
-</script>
+      
     </body>
     </html>
   `);
@@ -314,7 +299,17 @@ const teacherVal = currentTeacher[selected] || "";
           <form method="POST" action="/add">
   <input type="hidden" name="student" value="${escapeHtml(selected)}" />
   <input type="hidden" name="teacher" value="" />
-  <button class="primary" type="button" onclick="(function(btn){ const f=btn.closest('form'); const t=f.querySelector('input[name=teacher]'); const name=prompt('Teacher met with (optional):'); if(name===null) return; t.value=name.trim(); f.submit(); })(this);">Add Check-In</button>
+  <button class="primary" type="button"
+    onclick="(function(btn){
+      const f = btn.closest('form');
+      const t = f.querySelector('input[name=teacher]');
+      const name = prompt('Teacher met with (optional):');
+      if (name === null) return;
+      t.value = name.trim();
+      f.submit();
+    })(this);">
+    Add Check-In
+  </button>
 </form>
 
           <form method="POST" action="/clearweek">
