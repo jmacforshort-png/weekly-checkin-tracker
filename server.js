@@ -30,8 +30,10 @@ const HISTORY_TAB = process.env.SHEET_TAB || "Sheet1";
 const STUDENTS_TAB = process.env.STUDENTS_TAB || "Students";
 
 // In-memory current week counts (history persists in Sheets)
-const currentWeek = {}; // student -> number
-const currentTeachers = {}; // student -> array of teacher names this week
+// NOTE: these are per-student keys; OK for a small app, but if two owners use the same student name,
+// their "current week" would collide. We'll key by owner|student below to avoid collisions.
+const currentWeek = {}; // key -> number
+const currentTeachers = {}; // key -> array of teacher names this week
 
 // Torrey pine photo (Wikimedia Commons)
 const TORREY_PINE_IMG =
@@ -49,6 +51,14 @@ function escapeHtml(str) {
 
 function normalizeStudentName(s) {
   return (s || "").trim();
+}
+
+function normalizeOwner(s) {
+  return (s || "").trim().toLowerCase();
+}
+
+function ownerStudentKey(owner, student) {
+  return `${owner}||${student}`; // stable composite key
 }
 
 // Friday of the *current week*
@@ -111,68 +121,85 @@ async function appendRow(rangeA1, row) {
 }
 
 async function readHistoryRows() {
-  // Expects header row: student | week_ending | checkins | teacher
-  const values = await getSheetValues(`${HISTORY_TAB}!A:D`);
+  // Expects header row: owner | student | week_ending | checkins | teacher
+  const values = await getSheetValues(`${HISTORY_TAB}!A:E`);
   if (values.length === 0) return [];
 
   const header = (values[0] || []).map((h) => (h || "").trim().toLowerCase());
+  const idxOwner = header.indexOf("owner");
   const idxStudent = header.indexOf("student");
   const idxWeek = header.indexOf("week_ending");
   const idxCheckins = header.indexOf("checkins");
   const idxTeacher = header.indexOf("teacher");
 
   const startRow =
-    idxStudent === -1 || idxWeek === -1 || idxCheckins === -1 ? 0 : 1;
+    idxOwner === -1 || idxStudent === -1 || idxWeek === -1 || idxCheckins === -1
+      ? 0
+      : 1;
 
   const rows = [];
   for (let i = startRow; i < values.length; i++) {
     const r = values[i] || [];
-    const student = (r[idxStudent] ?? r[0] ?? "").toString().trim();
-    const weekEnding = (r[idxWeek] ?? r[1] ?? "").toString().trim();
-    const checkins = Number((r[idxCheckins] ?? r[2] ?? "").toString().trim());
-    const teacher = ((idxTeacher >= 0 ? r[idxTeacher] : r[3]) ?? "")
+
+    const owner = normalizeOwner((r[idxOwner] ?? r[0] ?? "").toString());
+    const student = (r[idxStudent] ?? r[1] ?? "").toString().trim();
+    const weekEnding = (r[idxWeek] ?? r[2] ?? "").toString().trim();
+    const checkins = Number((r[idxCheckins] ?? r[3] ?? "").toString().trim());
+    const teacher = ((idxTeacher >= 0 ? r[idxTeacher] : r[4]) ?? "")
       .toString()
       .trim();
 
-    if (!student || !weekEnding || Number.isNaN(checkins)) continue;
-    rows.push({ student, weekEnding, checkins, teacher });
+    if (!owner || !student || !weekEnding || Number.isNaN(checkins)) continue;
+    rows.push({ owner, student, weekEnding, checkins, teacher });
   }
   return rows;
 }
 
 async function readStudentsList() {
+  // Expects header row: owner | student
   let values;
   try {
-    values = await getSheetValues(`${STUDENTS_TAB}!A:A`);
+    values = await getSheetValues(`${STUDENTS_TAB}!A:B`);
   } catch {
     return [];
   }
   if (values.length === 0) return [];
 
-  const header = ((values[0] || [])[0] || "").trim().toLowerCase();
-  const startRow = header === "student" ? 1 : 0;
+  const headerRow = values[0] || [];
+  const headerA = (headerRow[0] || "").toString().trim().toLowerCase();
+  const headerB = (headerRow[1] || "").toString().trim().toLowerCase();
 
-  const students = [];
+  // If headers are present, start at 1. Otherwise, start at 0.
+  const startRow = headerA === "owner" || headerB === "student" ? 1 : 0;
+
+  const rows = [];
   for (let i = startRow; i < values.length; i++) {
-    const name = ((values[i] || [])[0] || "").toString().trim();
-    if (name) students.push(name);
+    const r = values[i] || [];
+    const owner = normalizeOwner((r[0] || "").toString());
+    const student = (r[1] || "").toString().trim();
+    if (owner && student) rows.push({ owner, student });
   }
-  return students;
+  return rows;
 }
 
-async function ensureStudentInSheet(name) {
+async function ensureStudentInSheet(owner, name) {
+  const o = normalizeOwner(owner);
   const student = normalizeStudentName(name);
-  if (!student) return;
+  if (!o || !student) return;
 
   const existing = await readStudentsList();
-  const exists = existing.some((s) => s.toLowerCase() === student.toLowerCase());
+  const exists = existing.some(
+    (r) => r.owner === o && r.student.toLowerCase() === student.toLowerCase()
+  );
   if (!exists) {
-    await appendRow(`${STUDENTS_TAB}!A:A`, [student]);
+    await appendRow(`${STUDENTS_TAB}!A:B`, [o, student]);
   }
 }
 
-async function saveWeekToHistory(student, friday, count, teacherSummary) {
-  await appendRow(`${HISTORY_TAB}!A:D`, [
+async function saveWeekToHistory(owner, student, friday, count, teacherSummary) {
+  const o = normalizeOwner(owner);
+  await appendRow(`${HISTORY_TAB}!A:E`, [
+    o,
     student,
     friday,
     count,
@@ -211,8 +238,8 @@ app.post("/login", (req, res) => {
 
   if (password === APP_PASSWORD) {
     req.session.loggedIn = true;
-    req.session.user = username; // ✅ store the owner
-    res.redirect("/?student=");
+    req.session.user = username;
+    res.redirect("/");
   } else {
     res.redirect("/login");
   }
@@ -226,12 +253,23 @@ app.use((req, res, next) => {
 });
 
 app.get("/", async (req, res) => {
-  const historyAll = await readHistoryRows();
-  const studentsFromSheet = await readStudentsList();
+  const owner = normalizeOwner(req.session.user);
+  if (!owner) return res.redirect("/login");
 
-  // dropdown = Students tab + any students already in history
-  const set = new Set(studentsFromSheet);
-  historyAll.forEach((r) => set.add(r.student));
+  const historyAll = await readHistoryRows();
+  const studentsRows = await readStudentsList();
+
+  // Only this owner's students
+  const ownerStudents = studentsRows
+    .filter((r) => r.owner === owner)
+    .map((r) => r.student);
+
+  // Also include any students from this owner's history (in case they existed before Students tab)
+  const set = new Set(ownerStudents);
+  historyAll.forEach((r) => {
+    if (r.owner === owner) set.add(r.student);
+  });
+
   if (set.size === 0) set.add("Student 1");
 
   const students = Array.from(set).sort((a, b) =>
@@ -240,15 +278,17 @@ app.get("/", async (req, res) => {
 
   const selected = normalizeStudentName(req.query.student) || students[0];
 
-  if (!(selected in currentWeek)) currentWeek[selected] = 0;
-  if (!currentTeachers[selected]) currentTeachers[selected] = [];
+  const key = ownerStudentKey(owner, selected);
+  if (!(key in currentWeek)) currentWeek[key] = 0;
+  if (!currentTeachers[key]) currentTeachers[key] = [];
 
-  const current = currentWeek[selected];
+  const current = currentWeek[key];
 
-  // Summarize history: one row per Friday for this student.
+  // Summarize history: one row per Friday for this owner+student.
   // If duplicates exist for same Friday, keep the row with MAX checkins (and its teacher text).
   const map = new Map(); // weekEnding -> {checkins, teacher}
   for (const r of historyAll) {
+    if (r.owner !== owner) continue;
     if (r.student !== selected) continue;
     const prev = map.get(r.weekEnding);
     if (!prev || r.checkins > prev.checkins) {
@@ -275,7 +315,6 @@ app.get("/", async (req, res) => {
     )
     .join("");
 
-  // ✅ FIX: wrap the <tr> in backticks so it's a string
   const historyRowsHtml =
     weeklySummary.length > 0
       ? weeklySummary
@@ -336,7 +375,7 @@ app.get("/", async (req, res) => {
     <div class="card">
       <h1>Weekly Check-in Tracker</h1>
       <div style="font-size:12px; color:#666;">Build: ${BUILD_TIME}</div>
-      <p class="sub">Select a student, track check-ins (goal: 4/week), and save weekly totals.</p>
+      <p class="sub">Logged in as <b>${escapeHtml(owner)}</b></p>
 
       <div class="panel">
         <div class="controls">
@@ -414,58 +453,78 @@ app.get("/", async (req, res) => {
 });
 
 app.post("/add", (req, res) => {
+  const owner = normalizeOwner(req.session.user);
+  if (!owner) return res.redirect("/login");
+
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
 
-  currentWeek[student] = Math.min((currentWeek[student] || 0) + 1, 5);
+  const key = ownerStudentKey(owner, student);
+
+  currentWeek[key] = Math.min((currentWeek[key] || 0) + 1, 5);
 
   const teacher = (req.body.teacher || "").trim();
   if (teacher) {
-    if (!currentTeachers[student]) currentTeachers[student] = [];
-    currentTeachers[student].push(teacher);
+    if (!currentTeachers[key]) currentTeachers[key] = [];
+    currentTeachers[key].push(teacher);
   }
 
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
 app.post("/clearweek", (req, res) => {
+  const owner = normalizeOwner(req.session.user);
+  if (!owner) return res.redirect("/login");
+
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
 
-  currentWeek[student] = 0;
-  currentTeachers[student] = [];
+  const key = ownerStudentKey(owner, student);
+
+  currentWeek[key] = 0;
+  currentTeachers[key] = [];
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
 app.post("/addstudent", async (req, res) => {
+  const owner = normalizeOwner(req.session.user);
+  if (!owner) return res.redirect("/login");
+
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
 
-  await ensureStudentInSheet(student);
-  if (!(student in currentWeek)) currentWeek[student] = 0;
-  if (!currentTeachers[student]) currentTeachers[student] = [];
+  await ensureStudentInSheet(owner, student);
+
+  const key = ownerStudentKey(owner, student);
+  if (!(key in currentWeek)) currentWeek[key] = 0;
+  if (!currentTeachers[key]) currentTeachers[key] = [];
 
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
 app.post("/endweek", async (req, res) => {
+  const owner = normalizeOwner(req.session.user);
+  if (!owner) return res.redirect("/login");
+
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
 
-  await ensureStudentInSheet(student);
+  await ensureStudentInSheet(owner, student);
 
-  const count = currentWeek[student] || 0;
+  const key = ownerStudentKey(owner, student);
+
+  const count = currentWeek[key] || 0;
   const friday = getWeekEndingFridayISO();
 
-  const teacherSummary = (currentTeachers[student] || [])
+  const teacherSummary = (currentTeachers[key] || [])
     .map((t) => t.trim())
     .filter(Boolean)
     .join("; ");
 
-  await saveWeekToHistory(student, friday, count, teacherSummary);
+  await saveWeekToHistory(owner, student, friday, count, teacherSummary);
 
-  currentWeek[student] = 0;
-  currentTeachers[student] = [];
+  currentWeek[key] = 0;
+  currentTeachers[key] = [];
 
   res.redirect("/?student=" + encodeURIComponent(student));
 });
