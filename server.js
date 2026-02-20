@@ -257,18 +257,17 @@ app.get("/", async (req, res) => {
     weeklySummary.length > 0
       ? weeklySummary
           .map(
-            (r) => `
+            (r) => 
             <tr>
-              <td>${escapeHtml(r.weekEnding)}</td>
-              <td><span class="badge" style="background:${colorForCount(
-                r.checkins
-              )}">${r.checkins}</span></td>
-              <td class="muted">${escapeHtml(r.teacher || "")}</td>
-              <td class="muted">${escapeHtml(summaryForCount(r.checkins))}</td>
-            </tr>`
+  <td>${escapeHtml(selected)}</td>
+  <td>${escapeHtml(r.weekEnding)}</td>
+  <td><span class="badge" style="background:${colorForCount(r.checkins)}">${r.checkins}</span></td>
+  <td class="muted">${escapeHtml(r.teacher || "")}</td>
+  <td class="muted">${escapeHtml(summaryForCount(r.checkins))}</td>
+</tr>
           )
           .join("")
-      : `<tr><td colspan="4" class="muted">No weeks recorded yet for this student.</td></tr>`;
+      : `<tr><td colspan="5" class="muted">No weeks recorded yet for this student.</td></tr>`;
 
   res.send(`<!doctype html>
 <html>
@@ -367,10 +366,11 @@ app.get("/", async (req, res) => {
           <h2 style="margin:0 0 6px;">Weekly History</h2>
           <table>
             <tr>
-              <th>Week Ending (Friday)</th>
-              <th>Check-ins</th>
-              <th>Teacher</th>
-              <th>Summary</th>
+              <th>Student</th>
+<th>Week Ending (Friday)</th>
+<th>Check-ins</th>
+<th>Teacher</th>
+<th>Summary</th>
             </tr>
             ${historyRowsHtml}
           </table>
