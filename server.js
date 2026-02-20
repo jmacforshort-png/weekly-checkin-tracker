@@ -85,11 +85,11 @@ function colorForCount(count) {
 }
 
 function summaryForCount(count) {
-  if (count >= 5) return "Above & beyond";
-  if (count === 4) return "Met goal";
-  if (count === 3) return "Close";
-  if (count === 2) return "In progress";
-  if (count === 1) return "Needs attention";
+  if (count >= 5) return "Above & beyond!";
+  if (count === 4) return "Met goal--nice.";
+  if (count === 3) return "Close!";
+  if (count === 2) return "In progress...";
+  if (count === 1) return "Uh oh--what happened?";
   return "No check-ins";
 }
 
