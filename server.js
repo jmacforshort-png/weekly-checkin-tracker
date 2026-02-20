@@ -18,7 +18,6 @@ app.use(
   })
 );
 
-// ✅ Serve files inside /public at /public/...
 app.use("/public", express.static("public"));
 
 // --- Google Sheets auth (service account) ---
