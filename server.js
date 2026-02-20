@@ -167,8 +167,8 @@ async function ensureStudentInSheet(name) {
   }
 }
 
-async function saveWeekToHistory(student, friday, count, teacher) {
-  await appendRow(`${HISTORY_TAB}!A:D`, [student, friday, count, teacher || ""]);
+async function saveWeekToHistory(student, friday, count, teacherSummary) {
+  await appendRow(`${HISTORY_TAB}!A:D`, [student, friday, count, teacherSummary || ""]);
 }
 
 // ---------- routes ----------
@@ -410,8 +410,11 @@ app.post("/endweek", async (req, res) => {
 
   const count = currentWeek[student] || 0;
   const friday = getWeekEndingFridayISO(); // Friday of that week
-
-  await saveWeekToHistory(student, friday, count);
+const teacherSummary = (currentTeachers[student] || [])
+  .map((t) => t.trim())
+  .filter(Boolean)
+  .join("; ");
+  await saveWeekToHistory(student, friday, count, teacherSummary);
 
   currentWeek[student] = 0;
 
