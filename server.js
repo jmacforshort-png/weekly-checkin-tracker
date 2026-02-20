@@ -33,10 +33,18 @@ const STUDENTS_TAB = process.env.STUDENTS_TAB || "Students";
 const currentWeek = {}; // key -> number
 const currentTeachers = {}; // key -> array of teacher names this week
 
+// Torrey pine photo (Wikimedia Commons)
 const TORREY_PINE_IMG =
   "https://commons.wikimedia.org/wiki/Special:FilePath/Pinus_torreyana_at_State_Reserve.jpg?width=1200";
 
-// ---------- helpers ----------
+// ✅ Your provided logo embedded as a background image (data URL)
+const BACKGROUND_IMG_DATA_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAqYAAAKkCAYAAADSs/2UAAAAAXNSR0IArs4c6QAAIABJREFUeF7s3Xl8VFX7B/DvNknI0lKJ0kKQkCJQQAokQASp0gK2oN0o2kq1qG1b1sK2oVb0tq1bq1a9tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2v7/7y8y7z0zM5kzZ3bPzZxzzjnP+fP8n7m5uZl5mQAAAP//AwD2w3d2AAAAAElFTkSuQmCC";
+
+// NOTE: The tiny base64 above is a placeholder header to keep this message readable.
+// In your actual paste, KEEP the big base64 string I generated previously.
+// If you want, I can re-send with the full base64 in one go.
+
 function escapeHtml(str) {
   return String(str ?? "")
     .replaceAll("&", "&amp;")
@@ -116,27 +124,21 @@ async function appendRow(rangeA1, row) {
   });
 }
 
-// Ensure required headers exist (prevents crashes / “entity not found” confusion)
+// Ensure required headers exist
 async function ensureHistoryHeaders() {
   const values = await getSheetValues(`${HISTORY_TAB}!A1:E1`);
   const row = values[0] || [];
   const normalized = row.map((x) => (x || "").toString().trim().toLowerCase());
-
   const wanted = ["owner", "student", "week_ending", "checkins", "teacher"];
   const ok = wanted.every((h, i) => (normalized[i] || "") === h);
-
-  if (!ok) {
-    await updateSheetValues(`${HISTORY_TAB}!A1:E1`, [wanted]);
-  }
+  if (!ok) await updateSheetValues(`${HISTORY_TAB}!A1:E1`, [wanted]);
 }
 
 async function ensureStudentsHeaders() {
-  // Students should be: owner | student
   const values = await getSheetValues(`${STUDENTS_TAB}!A1:B1`);
   const row = values[0] || [];
   const a = (row[0] || "").toString().trim().toLowerCase();
   const b = (row[1] || "").toString().trim().toLowerCase();
-
   if (!(a === "owner" && b === "student")) {
     await updateSheetValues(`${STUDENTS_TAB}!A1:B1`, [["owner", "student"]]);
   }
@@ -146,7 +148,6 @@ async function readHistoryRows() {
   await ensureHistoryHeaders();
   const values = await getSheetValues(`${HISTORY_TAB}!A:E`);
   if (values.length <= 1) return [];
-
   const rows = [];
   for (let i = 1; i < values.length; i++) {
     const r = values[i] || [];
@@ -165,7 +166,6 @@ async function readStudentsList() {
   await ensureStudentsHeaders();
   const values = await getSheetValues(`${STUDENTS_TAB}!A:B`);
   if (values.length <= 1) return [];
-
   const rows = [];
   for (let i = 1; i < values.length; i++) {
     const r = values[i] || [];
@@ -187,32 +187,33 @@ async function ensureStudentInSheet(owner, name) {
   const exists = existing.some(
     (r) => r.owner === o && r.student.toLowerCase() === student.toLowerCase()
   );
-  if (!exists) {
-    await appendRow(`${STUDENTS_TAB}!A:B`, [o, student]);
-  }
+  if (!exists) await appendRow(`${STUDENTS_TAB}!A:B`, [o, student]);
 }
 
 async function saveWeekToHistory(owner, student, friday, count, teacherSummary) {
   const o = normalizeOwner(owner);
   await ensureHistoryHeaders();
-  await appendRow(`${HISTORY_TAB}!A:E`, [o, student, friday, count, teacherSummary || ""]);
+  await appendRow(`${HISTORY_TAB}!A:E`, [
+    o,
+    student,
+    friday,
+    count,
+    teacherSummary || "",
+  ]);
 }
 
 // ---------- routes ----------
 
-// --- Login page ---
 app.get("/login", (req, res) => {
   res.send(`
     <html>
     <body style="font-family:Arial; background:#f6f7fb; display:flex; align-items:center; justify-content:center; height:100vh;">
       <form method="POST" action="/login" style="background:white; padding:30px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.1); min-width:320px;">
         <h2>Weekly Check-in Tracker</h2>
-
         <input type="text" name="username" placeholder="Username" required
           style="padding:10px; margin-top:10px; width:100%; box-sizing:border-box;">
         <input type="password" name="password" placeholder="Password" required
           style="padding:10px; margin-top:10px; width:100%; box-sizing:border-box;">
-
         <br><br>
         <button type="submit" style="padding:10px 20px; width:100%;">Login</button>
       </form>
@@ -224,7 +225,6 @@ app.get("/login", (req, res) => {
 app.post("/login", (req, res) => {
   const username = (req.body.username || "").trim().toLowerCase();
   const password = (req.body.password || "").trim();
-
   if (!username) return res.redirect("/login");
 
   if (password === APP_PASSWORD) {
@@ -236,7 +236,6 @@ app.post("/login", (req, res) => {
   }
 });
 
-// Protect all routes except /login
 app.use((req, res, next) => {
   if (req.path === "/login") return next();
   if (!req.session.loggedIn) return res.redirect("/login");
@@ -263,7 +262,9 @@ app.get("/", async (req, res) => {
     errorBanner = `Students read error: ${escapeHtml(e?.message || String(e))}`;
   }
 
-  const ownerStudents = studentsRows.filter((r) => r.owner === owner).map((r) => r.student);
+  const ownerStudents = studentsRows
+    .filter((r) => r.owner === owner)
+    .map((r) => r.student);
 
   const set = new Set(ownerStudents);
   historyAll.forEach((r) => {
@@ -337,9 +338,24 @@ app.get("/", async (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Weekly Check-in Tracker</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background:#f6f7fb; margin:0; color:#111; }
+    /* ✅ Background image behind the card */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      margin:0;
+      color:#111;
+
+      /* soft overlay + logo */
+      background:
+        radial-gradient(circle at top, rgba(246,247,251,.92) 0%, rgba(246,247,251,.98) 55%, rgba(246,247,251,1) 100%),
+        url("${BACKGROUND_IMG_DATA_URI}");
+      background-repeat: no-repeat;
+      background-position: center 120px;
+      background-size: 720px;
+      background-attachment: fixed;
+    }
+
     .wrap { max-width: 980px; margin: 40px auto; padding: 0 16px; }
-    .card { background: white; border-radius: 16px; box-shadow: 0 10px 28px rgba(0,0,0,.08); padding: 22px; }
+    .card { background: rgba(255,255,255,.96); border-radius: 16px; box-shadow: 0 10px 28px rgba(0,0,0,.10); padding: 22px; backdrop-filter: blur(6px); }
     h1 { margin: 0 0 6px; font-size: 26px; }
     .sub { color:#555; margin: 0 0 18px; }
     .panel { background:#fbfbfd; border:1px solid #eee; border-radius: 14px; padding: 16px; }
@@ -460,7 +476,6 @@ app.post("/add", (req, res) => {
   if (!student) return res.redirect("/");
 
   const key = ownerStudentKey(owner, student);
-
   currentWeek[key] = Math.min((currentWeek[key] || 0) + 1, 5);
 
   const teacher = (req.body.teacher || "").trim();
@@ -480,9 +495,9 @@ app.post("/clearweek", (req, res) => {
   if (!student) return res.redirect("/");
 
   const key = ownerStudentKey(owner, student);
-
   currentWeek[key] = 0;
   currentTeachers[key] = [];
+
   res.redirect("/?student=" + encodeURIComponent(student));
 });
 
@@ -532,7 +547,6 @@ app.post("/endweek", async (req, res) => {
     currentTeachers[key] = [];
   } catch (e) {
     console.log("[endweek] ERROR:", e?.message || e);
-    // keep state so user doesn't lose it if save fails
   }
 
   res.redirect("/?student=" + encodeURIComponent(student));
