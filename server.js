@@ -18,6 +18,9 @@ app.use(
   })
 );
 
+// ✅ Serve files inside /public at /public/...
+app.use("/public", express.static("public"));
+
 // --- Google Sheets auth (service account) ---
 const auth = new google.auth.GoogleAuth({
   keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS || "service-account.json",
@@ -37,14 +40,7 @@ const currentTeachers = {}; // key -> array of teacher names this week
 const TORREY_PINE_IMG =
   "https://commons.wikimedia.org/wiki/Special:FilePath/Pinus_torreyana_at_State_Reserve.jpg?width=1200";
 
-// ✅ Your provided logo embedded as a background image (data URL)
-const BACKGROUND_IMG_DATA_URI =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAqYAAAKkCAYAAADSs/2UAAAAAXNSR0IArs4c6QAAIABJREFUeF7s3Xl8VFX7B/DvNknI0lKJ0kKQkCJQQAokQASp0gK2oN0o2kq1qG1b1sK2oVb0tq1bq1a9tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2tq2v7/7y8y7z0zM5kzZ3bPzZxzzjnP+fP8n7m5uZl5mQAAAP//AwD2w3d2AAAAAElFTkSuQmCC";
-
-// NOTE: The tiny base64 above is a placeholder header to keep this message readable.
-// In your actual paste, KEEP the big base64 string I generated previously.
-// If you want, I can re-send with the full base64 in one go.
-
+// ---------- helpers ----------
 function escapeHtml(str) {
   return String(str ?? "")
     .replaceAll("&", "&amp;")
@@ -124,7 +120,6 @@ async function appendRow(rangeA1, row) {
   });
 }
 
-// Ensure required headers exist
 async function ensureHistoryHeaders() {
   const values = await getSheetValues(`${HISTORY_TAB}!A1:E1`);
   const row = values[0] || [];
@@ -338,20 +333,20 @@ app.get("/", async (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Weekly Check-in Tracker</title>
   <style>
-    /* ✅ Background image behind the card */
+    /* ✅ REPEATING background pattern behind the card */
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       margin:0;
       color:#111;
 
-      /* soft overlay + logo */
-      background:
-        radial-gradient(circle at top, rgba(246,247,251,.92) 0%, rgba(246,247,251,.98) 55%, rgba(246,247,251,1) 100%),
-        url("${BACKGROUND_IMG_DATA_URI}");
-      background-repeat: no-repeat;
-      background-position: center 120px;
-      background-size: 720px;
-      background-attachment: fixed;
+      /* Tile the logo across the entire background */
+      background-image:
+        linear-gradient(rgba(246,247,251,0.92), rgba(246,247,251,0.92)),
+        url("/public/bg.png");
+      background-repeat: repeat, repeat;
+      background-size: auto, 220px;  /* <- tile size (change to 160px/300px if you want) */
+      background-position: 0 0, 0 0;
+      background-attachment: fixed, fixed;
     }
 
     .wrap { max-width: 980px; margin: 40px auto; padding: 0 16px; }
