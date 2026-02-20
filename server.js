@@ -172,7 +172,12 @@ async function ensureStudentInSheet(name) {
 }
 
 async function saveWeekToHistory(student, friday, count, teacherSummary) {
-  await appendRow(`${HISTORY_TAB}!A:D`, [student, friday, count, teacherSummary || ""]);
+  await appendRow(`${HISTORY_TAB}!A:D`, [
+    student,
+    friday,
+    count,
+    teacherSummary || "",
+  ]);
 }
 
 // ---------- routes ----------
@@ -241,8 +246,14 @@ app.get("/", async (req, res) => {
   }
 
   const weeklySummary = Array.from(map.entries())
-    .map(([weekEnding, v]) => ({ weekEnding, checkins: v.checkins, teacher: v.teacher }))
-    .sort((a, b) => (a.weekEnding < b.weekEnding ? 1 : a.weekEnding > b.weekEnding ? -1 : 0));
+    .map(([weekEnding, v]) => ({
+      weekEnding,
+      checkins: v.checkins,
+      teacher: v.teacher,
+    }))
+    .sort((a, b) =>
+      a.weekEnding < b.weekEnding ? 1 : a.weekEnding > b.weekEnding ? -1 : 0
+    );
 
   const optionsHtml = students
     .map(
@@ -253,18 +264,21 @@ app.get("/", async (req, res) => {
     )
     .join("");
 
+  // ✅ FIX: wrap the <tr> in backticks so it's a string
   const historyRowsHtml =
     weeklySummary.length > 0
       ? weeklySummary
           .map(
-            (r) => 
-            <tr>
+            (r) => `
+<tr>
   <td>${escapeHtml(selected)}</td>
   <td>${escapeHtml(r.weekEnding)}</td>
-  <td><span class="badge" style="background:${colorForCount(r.checkins)}">${r.checkins}</span></td>
+  <td><span class="badge" style="background:${colorForCount(
+    r.checkins
+  )}">${r.checkins}</span></td>
   <td class="muted">${escapeHtml(r.teacher || "")}</td>
   <td class="muted">${escapeHtml(summaryForCount(r.checkins))}</td>
-</tr>
+</tr>`
           )
           .join("")
       : `<tr><td colspan="5" class="muted">No weeks recorded yet for this student.</td></tr>`;
@@ -367,10 +381,10 @@ app.get("/", async (req, res) => {
           <table>
             <tr>
               <th>Student</th>
-<th>Week Ending (Friday)</th>
-<th>Check-ins</th>
-<th>Teacher</th>
-<th>Summary</th>
+              <th>Week Ending (Friday)</th>
+              <th>Check-ins</th>
+              <th>Teacher</th>
+              <th>Summary</th>
             </tr>
             ${historyRowsHtml}
           </table>
