@@ -311,10 +311,11 @@ const teacherVal = currentTeacher[selected] || "";
             <select name="student" onchange="this.form.submit()">${optionsHtml}</select>
           </form>
 
-          <form method="POST" action="/addstudent" class="controls">
-            <input type="text" name="student" placeholder="Add new student name" required />
-            <button class="ghost" type="submit">Add Student</button>
-          </form>
+          <form method="POST" action="/add">
+  <input type="hidden" name="student" value="${escapeHtml(selected)}" />
+  <input type="hidden" name="teacher" value="" />
+  <button class="primary" type="button" onclick="(function(btn){ const f=btn.closest('form'); const t=f.querySelector('input[name=teacher]'); const name=prompt('Teacher met with (optional):'); if(name===null) return; t.value=name.trim(); f.submit(); })(this);">Add Check-In</button>
+</form>
 
           <form method="POST" action="/clearweek">
             <input type="hidden" name="student" value="${escapeHtml(selected)}" />
