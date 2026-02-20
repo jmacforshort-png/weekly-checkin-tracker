@@ -130,7 +130,7 @@ async function readHistoryRows() {
     const teacher = ((idxTeacher >= 0 ? r[idxTeacher] : r[3]) ?? "").toString().trim();
 
     if (!student || !weekEnding || Number.isNaN(checkins)) continue;
-    rows.push({ student, weekEnding, checkins, teacher });
+    rows.push({ weekEnding, checkins, teacher });
   }
   return rows;
 }
@@ -246,6 +246,7 @@ app.get("/", async (req, res) => {
             <tr>
               <td>${escapeHtml(r.weekEnding)}</td>
               <td><span class="badge" style="background:${colorForCount(r.checkins)}">${r.checkins}</span></td>
+              <td class="muted">${escapeHtml(r.teacher || "")}</td>
               <td class="muted">${escapeHtml(summaryForCount(r.checkins))}</td>
             </tr>`
           )
@@ -364,8 +365,9 @@ app.get("/", async (req, res) => {
           <table>
             <tr>
               <th>Week Ending (Friday)</th>
-              <th>Check-ins</th>
-              <th>Summary</th>
+<th>Check-ins</th>
+<th>Teacher</th>
+<th>Summary</th>
             </tr>
             ${historyRowsHtml}
           </table>
