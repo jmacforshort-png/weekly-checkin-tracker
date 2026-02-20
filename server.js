@@ -27,7 +27,7 @@ const sheets = google.sheets({ version: "v4", auth });
 
 const SHEET_ID = process.env.SHEET_ID;
 const HISTORY_TAB = process.env.SHEET_TAB || "Sheet1";
-const STUDENTS_TAB = process.env.STUDENTS_TAB || "Students";
+const add = process.env.add || "Students";
 
 // In-memory current week counts (history persists in Sheets)
 // Keyed by owner||student so two users can both have "Student 1" without collisions.
@@ -512,7 +512,13 @@ app.post("/addstudent", async (req, res) => {
   const student = normalizeStudentName(req.body.student);
   if (!student) return res.redirect("/");
 
-  await ensureStudentInSheet(owner, student);
+  try {
+    console.log("[addstudent] owner=", owner, "student=", student, "tab=", STUDENTS_TAB);
+    await ensureStudentInSheet(owner, student);
+    console.log("[addstudent] ensured in sheet ✅");
+  } catch (e) {
+    console.log("[addstudent] ERROR ensuring student:", e && e.message ? e.message : e);
+  }
 
   const key = ownerStudentKey(owner, student);
   if (!(key in currentWeek)) currentWeek[key] = 0;
