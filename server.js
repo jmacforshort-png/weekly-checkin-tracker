@@ -216,10 +216,10 @@ app.get("/", async (req, res) => {
 
   const students = Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   const selected = normalizeStudentName(req.query.student) || students[0];
-const teacherVal = currentTeacher[selected] || "";
 
   if (!(selected in currentWeek)) currentWeek[selected] = 0;
   const current = currentWeek[selected];
+  const currentTeachers = {};
 
   // --- Build a one-row-per-Friday summary from what’s in the sheet ---
   // If multiple rows exist for the same student+Friday, we summarize by taking the MAX checkins.
