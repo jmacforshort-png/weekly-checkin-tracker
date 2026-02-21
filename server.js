@@ -201,15 +201,95 @@ async function saveWeekToHistory(owner, student, friday, count, teacherSummary) 
 app.get("/login", (req, res) => {
   res.send(`
     <html>
-    <body style="font-family:Arial; background:#f6f7fb; display:flex; align-items:center; justify-content:center; height:100vh;">
-      <form method="POST" action="/login" style="background:white; padding:30px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.1); min-width:320px;">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Weekly Check-in Tracker</title>
+      <style>
+        @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap");
+        :root {
+          --blue-50: #eff6ff;
+          --blue-100: #dbeafe;
+          --blue-600: #2563eb;
+          --blue-700: #1d4ed8;
+          --ink-900: #0f172a;
+          --ink-700: #334155;
+          --ink-500: #64748b;
+          --border: #e2e8f0;
+          --card: #ffffff;
+        }
+        * { box-sizing: border-box; }
+        body {
+          font-family: "Source Sans 3", "Nunito", sans-serif;
+          margin: 0;
+          color: var(--ink-900);
+          background:
+            linear-gradient(180deg, rgba(239,246,255,0.9), rgba(248,250,252,0.95)),
+            url("/public/bg.png");
+          background-repeat: repeat, repeat;
+          background-size: auto, 220px;
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+        .login-card {
+          width: min(420px, 94vw);
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: 18px;
+          padding: 28px;
+          box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+        }
+        .login-card h2 {
+          font-family: "Nunito", sans-serif;
+          margin: 0 0 6px;
+          font-size: 26px;
+          letter-spacing: 0.2px;
+        }
+        .login-card p {
+          margin: 0 0 18px;
+          color: var(--ink-500);
+        }
+        .field {
+          margin-top: 12px;
+        }
+        .field input {
+          width: 100%;
+          padding: 12px 14px;
+          border-radius: 12px;
+          border: 1px solid var(--border);
+          font-size: 15px;
+          background: #fff;
+        }
+        .btn {
+          margin-top: 16px;
+          width: 100%;
+          padding: 12px 16px;
+          border: 0;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 15px;
+          background: var(--blue-600);
+          color: #fff;
+          cursor: pointer;
+          box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+        }
+        .btn:hover { background: var(--blue-700); }
+      </style>
+    </head>
+    <body>
+      <form method="POST" action="/login" class="login-card">
         <h2>Weekly Check-in Tracker</h2>
-        <input type="text" name="username" placeholder="Username" required
-          style="padding:10px; margin-top:10px; width:100%; box-sizing:border-box;">
-        <input type="password" name="password" placeholder="Password" required
-          style="padding:10px; margin-top:10px; width:100%; box-sizing:border-box;">
-        <br><br>
-        <button type="submit" style="padding:10px 20px; width:100%;">Login</button>
+        <p>Sign in to manage weekly student check-ins.</p>
+        <div class="field">
+          <input type="text" name="username" placeholder="Username" required>
+        </div>
+        <div class="field">
+          <input type="password" name="password" placeholder="Password" required>
+        </div>
+        <button class="btn" type="submit">Login</button>
       </form>
     </body>
     </html>
@@ -332,15 +412,28 @@ app.get("/", async (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Weekly Check-in Tracker</title>
   <style>
+    @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap");
+    :root {
+      --blue-50: #eff6ff;
+      --blue-100: #dbeafe;
+      --blue-600: #2563eb;
+      --blue-700: #1d4ed8;
+      --ink-900: #0f172a;
+      --ink-700: #334155;
+      --ink-500: #64748b;
+      --border: #e2e8f0;
+      --card: #ffffff;
+      --panel: #f8fafc;
+    }
     /* ✅ REPEATING background pattern behind the card */
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-family: "Source Sans 3", "Nunito", sans-serif;
       margin:0;
-      color:#111;
+      color: var(--ink-900);
 
       /* Tile the logo across the entire background */
       background-image:
-        linear-gradient(rgba(246,247,251,0.92), rgba(246,247,251,0.92)),
+        linear-gradient(rgba(239,246,255,0.94), rgba(248,250,252,0.96)),
         url("/public/bg.png");
       background-repeat: repeat, repeat;
       background-size: auto, 220px;  /* <- tile size (change to 160px/300px if you want) */
@@ -348,37 +441,125 @@ app.get("/", async (req, res) => {
       background-attachment: fixed, fixed;
     }
 
-    .wrap { max-width: 980px; margin: 40px auto; padding: 0 16px; }
-    .card { background: rgba(255,255,255,.96); border-radius: 16px; box-shadow: 0 10px 28px rgba(0,0,0,.10); padding: 22px; backdrop-filter: blur(6px); }
-    h1 { margin: 0 0 6px; font-size: 26px; }
-    .sub { color:#555; margin: 0 0 18px; }
-    .panel { background:#fbfbfd; border:1px solid #eee; border-radius: 14px; padding: 16px; }
+    .wrap { max-width: 1020px; margin: 24px auto 32px; padding: 0 18px; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(239,246,255,0.9), rgba(255,255,255,0.9));
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-inner {
+      max-width: 1020px;
+      margin: 0 auto;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--ink-700);
+      font-size: 14px;
+    }
+    .brand {
+      font-family: "Nunito", sans-serif;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      color: var(--ink-900);
+    }
+    .pill {
+      background: var(--blue-100);
+      color: #1e3a8a;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .card {
+      background: rgba(255,255,255,.96);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+      padding: 28px;
+      backdrop-filter: blur(6px);
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      font-family: "Nunito", sans-serif;
+      letter-spacing: 0.2px;
+    }
+    .sub { color: var(--ink-500); margin: 0 0 18px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+    }
     .controls { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-    select, input[type="text"] { padding: 10px 12px; border-radius: 12px; border: 1px solid #ddd; font-weight: 600; background: white; }
-    button { border:0; border-radius: 12px; padding: 10px 14px; font-weight: 750; cursor:pointer; }
-    button:hover { opacity: .94; }
-    .primary { background:#2563eb; color:white; }
-    .ghost { background:#eef2ff; color:#1e3a8a; }
+    select, input[type="text"] {
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-weight: 600;
+      background: white;
+      color: var(--ink-900);
+      min-height: 42px;
+    }
+    button {
+      border:0;
+      border-radius: 12px;
+      padding: 11px 16px;
+      font-weight: 700;
+      cursor:pointer;
+      min-height: 42px;
+    }
+    button:hover { transform: translateY(-1px); }
+    .primary {
+      background: var(--blue-600);
+      color:white;
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+    }
+    .primary:hover { background: var(--blue-700); }
+    .ghost { background: var(--blue-100); color: #1e3a8a; }
     .danger { background:#fee2e2; color:#7f1d1d; }
-    .big { font-size: 34px; font-weight: 900; margin: 12px 0 4px; }
+    .big { font-size: 32px; font-weight: 800; margin: 12px 0 4px; }
     .badge { display:inline-block; color:white; padding: 6px 10px; border-radius: 999px; font-weight: 900; min-width: 36px; text-align:center; }
-    .muted { color:#666; font-size: 13px; }
+    .muted { color: var(--ink-500); font-size: 13px; }
     table { width:100%; border-collapse: collapse; margin-top: 12px; overflow:hidden; border-radius: 12px; }
-    th, td { padding: 12px; text-align:left; border-bottom: 1px solid #eee; vertical-align: middle; }
-    th { background:#fafafa; font-size: 12px; color:#444; text-transform: uppercase; letter-spacing:.06em; }
-    .hr { height:1px; background:#eee; margin: 14px 0; }
+    th, td { padding: 12px; text-align:left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    th {
+      background: #f1f5f9;
+      font-size: 12px;
+      color: var(--ink-700);
+      text-transform: uppercase;
+      letter-spacing:.06em;
+    }
+    .hr { height:1px; background: var(--border); margin: 16px 0; }
     .grid { display:grid; grid-template-columns: 1fr; gap: 16px; }
     @media (min-width: 860px){ .grid { grid-template-columns: 1.2fr .8fr; } }
     @media (max-width: 520px){
       .controls { flex-direction: column; align-items: stretch; }
       select, input[type="text"], button { width: 100%; }
     }
-    .imgbox img { width:100%; border-radius: 14px; display:block; }
+    .imgbox img { width:100%; border-radius: 14px; display:block; border: 1px solid var(--border); }
     .caption { margin-top:10px; }
     .banner { background:#fff7ed; border:1px solid #fed7aa; padding:10px 12px; border-radius:12px; color:#9a3412; margin-bottom:12px; }
+    footer {
+      margin: 18px 0 0;
+      color: var(--ink-500);
+      font-size: 12px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">Weekly Check-in Tracker</div>
+      <div class="pill">School Use</div>
+    </div>
+  </header>
   <div class="wrap">
     <div class="card">
       <h1>Weekly Check-in Tracker</h1>
@@ -457,6 +638,7 @@ app.get("/", async (req, res) => {
       </div>
 
     </div>
+    <footer>Built for classroom check-ins • Keep it simple and consistent</footer>
   </div>
 </body>
 </html>`);
