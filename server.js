@@ -20,11 +20,30 @@ app.use(
 
 app.use("/public", express.static("public"));
 
-// --- Google Sheets auth (service account) ---
-const auth = new google.auth.GoogleAuth({
-  keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS || "service-account.json",
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+app.get("/healthz", (_req, res) => {
+  res.status(200).json({ ok: true, buildTime: BUILD_TIME });
 });
+
+// --- Google Sheets auth (service account) ---
+let serviceAccountCredentials = undefined;
+if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+  try {
+    serviceAccountCredentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  } catch (e) {
+    console.error("Invalid GOOGLE_SERVICE_ACCOUNT_JSON:", e?.message || e);
+  }
+}
+
+const authConfig = {
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+};
+if (serviceAccountCredentials) {
+  authConfig.credentials = serviceAccountCredentials;
+} else {
+  authConfig.keyFile =
+    process.env.GOOGLE_APPLICATION_CREDENTIALS || "service-account.json";
+}
+const auth = new google.auth.GoogleAuth(authConfig);
 const sheets = google.sheets({ version: "v4", auth });
 
 const SHEET_ID = process.env.SHEET_ID;
